@@ -17,17 +17,8 @@ const errorHandler = require('./helpers/error-handler');
 app.use(authJwt());
 
 
-//middleware
-// const corsOptions = {
-//   origin: '*',
-//   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-//   credentials: true,
-//   allowedHeaders: 'Content-Type, Accept, authJwt, charge, authorization',
-// };
 
 
-
-// app.use(cors(corsOptions));
 // app.options('*', cors(corsOptions)); ;
 app.use(cors());
 app.options("*", cors());
