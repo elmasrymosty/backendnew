@@ -3,59 +3,15 @@ const express = require('express');
 const { Category } = require('../models/category');
 const router = express.Router();
 const mongoose = require('mongoose');
+
 const multer = require('multer');
-
-//
-const FILE_TYPE_MAP = {
-    'image/png': 'png',
-    'image/jpeg': 'jpeg',
-    'image/jpg': 'jpg',
-    'image/jfif': 'jfif',
-    'image/gif': 'gif',
-    'image/webp': 'webp'
-
-};
-
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const isValid = FILE_TYPE_MAP[file.mimetype];
-        let uploadError = new Error('invalid image type');
-
-        if (isValid) {
-            uploadError = null;
-        }
-        cb(uploadError, 'public/uploads');
-    },
-    filename: function (req, file, cb) {
-        const fileName = file.originalname.split(' ').join('-');
-        const extension = FILE_TYPE_MAP[file.mimetype];
-        cb(null, `${fileName}-${Date.now()}.${extension}`);
-    }
-});
-
-
-
-const uploadOption = multer({ 
-    storage: storage, 
-    fileFilter: function(req, file, callback) {
-        const isValid = FILE_TYPE_MAP[file.mimetype];
-        if (isValid) {
-            callback(null, true);
-        } else {
-            callback(new Error('Only JPEG, JPG,webp,gif,jfif and PNG files are allowed'));
-        }
-    },
-    limits: {
-        fileSize: 1024 * 1024 * 5// maximum file size: 5MB
-    }
-}) // allow up to 10 images to be uploaded
-
-
+const { storage } = require('../cloudinary'); // adjust path accordingly
+const upload = multer({ storage });
 
 
 
 // Route to add a new product with both single and multiple images
-router.post('/', uploadOption.fields([
+router.post('/', upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'images', maxCount: 5 }
 ]), async (req, res) => {
@@ -63,18 +19,11 @@ router.post('/', uploadOption.fields([
         const category = await Category.findById(req.body.category);
         if (!category) return res.status(400).send('Invalid Category');
        
-        const singleImageURL = req.protocol + '://' + req.get('host') + '/public/uploads/' + req.files.image[0].filename;
+    
+    const singleImageURL = req.files.image[0].path;
 
-let imagesPaths = [];
-if (req.files && req.files.images && req.files.images.length > 0) {
-    const basePath = `${req.protocol}://${req.get('host')}/public/uploads/`;
-    imagesPaths = req.files.images.map((file) => basePath + file.filename);
-    console.log('req.files.images:', req.files.images);
-} else {
-    console.error("No files provided.");
-}
 
- 
+const imagesPaths = req.files.images?.map(file => file.path) || [];
         let product = new Product({
           name: req.body.name,
           description: req.body.description,
@@ -99,7 +48,7 @@ if (req.files && req.files.images && req.files.images.length > 0) {
       });
 
 // Route to update a product by ID
-router.put('/:productId', uploadOption.fields([
+router.put('/:productId', upload.fields([
   { name: 'image', maxCount: 1 },
   { name: 'images', maxCount: 5 }
 ]), async (req, res) => {
@@ -128,13 +77,15 @@ router.put('/:productId', uploadOption.fields([
       // Update images if provided
       if (req.files) {
           if (req.files.image && req.files.image.length > 0) {
-              const singleImageURL = req.protocol + '://' + req.get('host') + '/public/uploads/' + req.files.image[0].filename;
+             const singleImageURL = req.files.image[0].path;
+
               product.image = singleImageURL;
           }
 
           if (req.files.images && req.files.images.length > 0) {
               const basePath = `${req.protocol}://${req.get('host')}/public/uploads/`;
-              const imagesPaths = req.files.images.map((file) => basePath + file.filename);
+              const imagesPaths = req.files.images.map(file => file.path);
+
               product.images = imagesPaths;
           }
       }
