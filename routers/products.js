@@ -3,246 +3,216 @@ const express = require('express');
 const { Category } = require('../models/category');
 const router = express.Router();
 const mongoose = require('mongoose');
-
 const multer = require('multer');
-const { storage } = require('../cloudinary'); // adjust path accordingly
+const { storage } = require('../cloudinary'); // ensure path is correct for your Cloudinary config
 const upload = multer({ storage });
 
-
+// Upload image to Cloudinary (helper function)
+const uploadToCloudinary = async (filePath) => {
+    try {
+        const result = await cloudinary.uploader.upload(filePath, { folder: 'products' });
+        return result.secure_url;
+    } catch (error) {
+        console.error("Error uploading to Cloudinary", error);
+        throw new Error('Image upload failed');
+    }
+};
 
 // Route to add a new product with both single and multiple images
 router.post('/', upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'images', maxCount: 5 }
 ]), async (req, res) => {
-   
+    try {
         const category = await Category.findById(req.body.category);
         if (!category) return res.status(400).send('Invalid Category');
-       
-    
-    const singleImageURL = req.files.image[0].path;
 
+        const singleImageURL = req.files.image ? await uploadToCloudinary(req.files.image[0].path) : null;
+        const imagesPaths = req.files.images ? await Promise.all(req.files.images.map(file => uploadToCloudinary(file.path))) : [];
 
-const imagesPaths = req.files.images?.map(file => file.path) || [];
         let product = new Product({
-          name: req.body.name,
-          description: req.body.description,
-          brand: req.body.brand,
-          price: req.body.price,
-          discount:req.body.discount,
-          priceAfterDiscount:req.body.priceAfterDiscount,
-          category: req.body.category,
-          countInStock: req.body.countInStock, 
-          rating: req.body.rating,
-          numReviews: req.body.numReviews,
-          isFeatured: req.body.isFeatured,
-          image:singleImageURL, // Single image,
-          images:imagesPaths,
+            name: req.body.name,
+            description: req.body.description,
+            brand: req.body.brand,
+            price: req.body.price,
+            discount: req.body.discount,
+            priceAfterDiscount: req.body.priceAfterDiscount,
+            category: req.body.category,
+            countInStock: req.body.countInStock,
+            rating: req.body.rating,
+            numReviews: req.body.numReviews,
+            isFeatured: req.body.isFeatured,
+            image: singleImageURL, // Single image,
+            images: imagesPaths,
         });
-      
+
         product = await product.save();
-      
+
         if (!product) return res.status(500).send('The product cannot be created');
-      
+
         res.send(product);
-      });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal server error');
+    }
+});
 
 // Route to update a product by ID
 router.put('/:productId', upload.fields([
-  { name: 'image', maxCount: 1 },
-  { name: 'images', maxCount: 5 }
+    { name: 'image', maxCount: 1 },
+    { name: 'images', maxCount: 5 }
 ]), async (req, res) => {
-  try {
-      const productId = req.params.productId;
+    try {
+        const productId = req.params.productId;
+        const product = await Product.findById(productId);
+        if (!product) return res.status(404).send('Product not found');
 
-      // Check if the product with the given ID exists
-      const product = await Product.findById(productId);
-      if (!product) {
-          return res.status(404).send('Product not found');
-      }
+        // Update the product fields
+        product.name = req.body.name;
+        product.description = req.body.description;
+        product.brand = req.body.brand;
+        product.price = req.body.price;
+        product.discount = req.body.discount;
+        product.priceAfterDiscount = req.body.priceAfterDiscount;
+        product.category = req.body.category;
+        product.countInStock = req.body.countInStock;
+        product.rating = req.body.rating;
+        product.numReviews = req.body.numReviews;
+        product.isFeatured = req.body.isFeatured;
 
-      // Update the product fields
-      product.name = req.body.name;
-      product.description = req.body.description;
-      product.brand = req.body.brand;
-      product.price = req.body.price;
-      product.discount = req.body.discount;
-      product.priceAfterDiscount = req.body.priceAfterDiscount;
-      product.category = req.body.category;
-      product.countInStock = req.body.countInStock;
-      product.rating = req.body.rating;
-      product.numReviews = req.body.numReviews;
-      product.isFeatured = req.body.isFeatured;
-
-      // Update images if provided
-      if (req.files) {
-          if (req.files.image && req.files.image.length > 0) {
-             const singleImageURL = req.files.image[0].path;
-
-              product.image = singleImageURL;
-          }
-
-          if (req.files.images && req.files.images.length > 0) {
-              const basePath = `${req.protocol}://${req.get('host')}/public/uploads/`;
-              const imagesPaths = req.files.images.map(file => file.path);
-
-              product.images = imagesPaths;
-          }
-      }
-
-      // Save the updated product
-      const updatedProduct = await product.save();
-
-      if (!updatedProduct) {
-          return res.status(500).send('Failed to update the product');
-      }
-
-      res.send(updatedProduct);
-  } catch (error) {
-      console.error(error);
-      res.status(500).send('Internal server error');
-  }
-});
-
-
-router.get(`/`, async (req, res) => {
-    let filter = {};
-    if (req.query.categories) {
-        filter = { category: req.query.categories.split(',') };
-    }
-
-    const productList = await Product.find(filter).populate('category');
-
-    if (!productList) {
-        res.status(500).json({ success: false });
-    }
-    res.send(productList);
-});
-
-router.get(`/:id`, async (req, res) => {
-    const product = await Product.findById(req.params.id).populate('category');
-
-    if (!product) {
-        res.status(500).json({ success: false });
-    }
-    res.send(product);
-});
-
-
-
-router.delete('/:id', (req, res) => {
-    Product.findByIdAndRemove(req.params.id)
-        .then((product) => {
-            if (product) {
-                return res.status(200).json({
-                    success: true,
-                    message: 'the product is deleted!'
-                });
-            } else {
-                return res.status(404).json({ success: false, message: 'product not found!' });
+        // Handle image updates
+        if (req.files) {
+            if (req.files.image && req.files.image.length > 0) {
+                product.image = await uploadToCloudinary(req.files.image[0].path);
             }
-        })
-        .catch((err) => {
-            return res.status(500).json({ success: false, error: err });
-        });
+            if (req.files.images && req.files.images.length > 0) {
+                product.images = await Promise.all(req.files.images.map(file => uploadToCloudinary(file.path)));
+            }
+        }
+
+        const updatedProduct = await product.save();
+
+        if (!updatedProduct) return res.status(500).send('Failed to update the product');
+
+        res.send(updatedProduct);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal server error');
+    }
 });
+
+// Fetch all products with optional filtering by category
+router.get(`/`, async (req, res) => {
+    try {
+        let filter = {};
+        if (req.query.categories) {
+            filter = { category: req.query.categories.split(',') };
+        }
+        const productList = await Product.find(filter).populate('category');
+        res.send(productList);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+});
+
+// Fetch a single product by ID
+router.get(`/:id`, async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id).populate('category');
+        if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+        res.send(product);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+});
+
+// Delete a product by ID
+router.delete('/:id', async (req, res) => {
+    try {
+        const product = await Product.findByIdAndRemove(req.params.id);
+        if (product) {
+            res.status(200).json({ success: true, message: 'The product is deleted!' });
+        } else {
+            res.status(404).json({ success: false, message: 'Product not found!' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, error: err });
+    }
+});
+
+// Get product count
 const getProductCount = async () => {
     if (!getProductCount.cachedCount) {
-      getProductCount.cachedCount = await Product.countDocuments();
+        getProductCount.cachedCount = await Product.countDocuments();
     }
     return getProductCount.cachedCount;
-  };
-  router.get(`/get/count`, async (req, res) => {
-    try {
-      const productCount = await getProductCount();
-  
-      if (!productCount) {
-        return res.status(500).json({ success: false });
-      }
-  
-      res.send({
-        productCount: productCount
-      });
-    } catch (error) {
-      console.error('Error getting product count:', error);
-      res.status(500).json({ success: false });
-    }
-  });
-  
-router.get(`/get/featured/:count`, async (req, res) => {
-    try {
-    const count = req.params.count ? req.params.count : 0;
-    const products = await Product.find({ isFeatured: true }).limit(+count);
+};
 
-    if (!products) {
+router.get(`/get/count`, async (req, res) => {
+    try {
+        const productCount = await getProductCount();
+        res.send({ productCount });
+    } catch (error) {
+        console.error('Error getting product count:', error);
         res.status(500).json({ success: false });
     }
-    res.send(products);}
-    catch (err) {
-        res.status(500).json({ success: false });
-      }
-   
 });
 
+// Get featured products (limited by count)
+router.get(`/get/featured/:count`, async (req, res) => {
+    try {
+        const count = req.params.count ? parseInt(req.params.count) : 0;
+        const products = await Product.find({ isFeatured: true }).limit(count);
+        res.send(products);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false });
+    }
+});
+
+// Search products by name
+router.get('/products/search', async (req, res) => {
+    const keyword = req.query.q;
+    if (!keyword) return res.status(400).json({ error: 'Keyword is required.' });
+
+    try {
+        const searchResults = await Product.find({ name: { $regex: new RegExp(keyword, 'i') } }).lean();
+        const resultsWithoutId = searchResults.map((result) => {
+            const { _id, ...rest } = result;
+            return rest;
+        });
+        res.json(resultsWithoutId);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 // Endpoint to get a single product's image
 router.get('/image/:id', async (req, res) => {
-    const productId = req.params.id;
     try {
-        const product = await Product.findById(productId);
-        if (!product) {
-            return res.status(404).json({ message: 'Product not found' });
-        }
-        return res.status(200).json({ image: product.image });
+        const product = await Product.findById(req.params.id);
+        if (!product) return res.status(404).json({ message: 'Product not found' });
+        res.status(200).json({ image: product.image });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error' });
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
 // Endpoint to get a product's gallery images
 router.get('/gallery/:id', async (req, res) => {
-    const productId = req.params.id;
     try {
-        const product = await Product.findById(productId);
-        if (!product) {
-            return res.status(404).json({ message: 'Product not found' });
-        }
-        return res.status(200).json({ images: product.images });
+        const product = await Product.findById(req.params.id);
+        if (!product) return res.status(404).json({ message: 'Product not found' });
+        res.status(200).json({ images: product.images });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error' });
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
-
-// Search products by text input
-router.get('/products/search', async (req, res) => {
-  const keyword = req.query.q;
-
-  if (!keyword) {
-    return res.status(400).json({ error: 'Keyword is required.' });
-  }
-
-  try {
-    // Use Mongoose to search for products by name containing the keyword
-    const searchResults = await Product.find({
-      name: { $regex: new RegExp(keyword, 'i') }, // Case-insensitive search
-    }).lean();
-
-    // Exclude the _id field from each document in searchResults
-    const resultsWithoutId = searchResults.map((result) => {
-      const { _id, ...rest } = result;
-      return rest;
-    });
-
-    res.json(resultsWithoutId);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-  
-
-   
-
-
 
 module.exports = router;
