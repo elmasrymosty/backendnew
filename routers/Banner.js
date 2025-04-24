@@ -39,7 +39,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
 
     res.status(201).json({ images: imageUrls });
   } catch (error) {
-    console.error('Upload error:', error); // ✅ مهم للطباعة الصحيحة
+    console.error('Upload error:', JSON.stringify(error, null, 2)); // ✅ مهم للطباعة الصحيحة
     res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
