@@ -1,219 +1,117 @@
-const { Product } = require('../models/product');
 const express = require('express');
-const { Category } = require('../models/category');
 const router = express.Router();
 const mongoose = require('mongoose');
 const multer = require('multer');
-const { storage } = require('../cloudinary'); // ensure path is correct for your Cloudinary config
+const { cloudinary, storage } = require('../cloudinary');
+const { Product } = require('../models/product');
+const { Category } = require('../models/category');
+
 const upload = multer({ storage });
 
-
-// Upload image to Cloudinary (helper function)
-const uploadToCloudinary = async (filePath) => {
-    try {
-        const result = await cloudinary.uploader.upload(filePath, { folder: 'products' });
-        return result.secure_url;
-    } catch (error) {
-        console.error("Error uploading to Cloudinary", error);
-        throw new Error('Image upload failed');
-    }
+// Helper to delete image from Cloudinary
+const deleteFromCloudinary = async (publicId) => {
+  try {
+    await cloudinary.uploader.destroy(publicId);
+  } catch (error) {
+    console.error('Error deleting from Cloudinary:', error);
+  }
 };
 
-// Route to add a new product with both single and multiple images
+// POST: Create Product
 router.post('/', upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'images', maxCount: 5 }
+  { name: 'image', maxCount: 1 },
+  { name: 'images', maxCount: 5 }
 ]), async (req, res) => {
-    try {
-        const category = await Category.findById(req.body.category);
-        if (!category) return res.status(400).send('Invalid Category');
+  try {
+    const category = await Category.findById(req.body.category);
+    if (!category) return res.status(400).send('Invalid Category');
 
-        const singleImageURL = req.files.image ? await uploadToCloudinary(req.files.image[0].path) : null;
-        const imagesPaths = req.files.images ? await Promise.all(req.files.images.map(file => uploadToCloudinary(file.path))) : [];
+    const singleImage = req.files.image?.[0] || null;
+    const galleryImages = req.files.images || [];
 
-        let product = new Product({
-            name: req.body.name,
-            description: req.body.description,
-            brand: req.body.brand,
-            price: req.body.price,
-            discount: req.body.discount,
-            priceAfterDiscount: req.body.priceAfterDiscount,
-            category: req.body.category,
-            countInStock: req.body.countInStock,
-            rating: req.body.rating,
-            numReviews: req.body.numReviews,
-            isFeatured: req.body.isFeatured,
-            image: singleImageURL, // Single image,
-            images: imagesPaths,
-        });
+    const image = singleImage ? {
+      url: singleImage.path,
+      public_id: singleImage.filename
+    } : null;
 
-        product = await product.save();
+    const images = galleryImages.map(file => ({
+      url: file.path,
+      public_id: file.filename
+    }));
 
-        if (!product) return res.status(500).send('The product cannot be created');
+    const product = new Product({
+      ...req.body,
+      image,
+      images
+    });
 
-        res.send(product);
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Internal server error');
-    }
+    const savedProduct = await product.save();
+    res.status(201).send(savedProduct);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Internal server error');
+  }
 });
 
-// Route to update a product by ID
+// PUT: Update Product
 router.put('/:productId', upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'images', maxCount: 5 }
+  { name: 'image', maxCount: 1 },
+  { name: 'images', maxCount: 5 }
 ]), async (req, res) => {
-    try {
-        const productId = req.params.productId;
-        const product = await Product.findById(productId);
-        if (!product) return res.status(404).send('Product not found');
+  try {
+    const product = await Product.findById(req.params.productId);
+    if (!product) return res.status(404).send('Product not found');
 
-        // Update the product fields
-        product.name = req.body.name;
-        product.description = req.body.description;
-        product.brand = req.body.brand;
-        product.price = req.body.price;
-        product.discount = req.body.discount;
-        product.priceAfterDiscount = req.body.priceAfterDiscount;
-        product.category = req.body.category;
-        product.countInStock = req.body.countInStock;
-        product.rating = req.body.rating;
-        product.numReviews = req.body.numReviews;
-        product.isFeatured = req.body.isFeatured;
-
-        // Handle image updates
-        if (req.files) {
-            if (req.files.image && req.files.image.length > 0) {
-                product.image = await uploadToCloudinary(req.files.image[0].path);
-            }
-            if (req.files.images && req.files.images.length > 0) {
-                product.images = await Promise.all(req.files.images.map(file => uploadToCloudinary(file.path)));
-            }
-        }
-
-        const updatedProduct = await product.save();
-
-        if (!updatedProduct) return res.status(500).send('Failed to update the product');
-
-        res.send(updatedProduct);
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Internal server error');
+    // Delete old images from Cloudinary if new ones are uploaded
+    if (req.files.image?.[0]) await deleteFromCloudinary(product.image?.public_id);
+    if (req.files.images?.length) {
+      for (const img of product.images) {
+        await deleteFromCloudinary(img.public_id);
+      }
     }
+
+    // Set new image data
+    if (req.files.image?.[0]) {
+      product.image = {
+        url: req.files.image[0].path,
+        public_id: req.files.image[0].filename
+      };
+    }
+
+    if (req.files.images?.length) {
+      product.images = req.files.images.map(file => ({
+        url: file.path,
+        public_id: file.filename
+      }));
+    }
+
+    Object.assign(product, req.body);
+    const updated = await product.save();
+
+    res.send(updated);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Internal server error');
+  }
 });
 
-// Fetch all products with optional filtering by category
-router.get(`/`, async (req, res) => {
-    try {
-        let filter = {};
-        if (req.query.categories) {
-            filter = { category: req.query.categories.split(',') };
-        }
-        const productList = await Product.find(filter).populate('category');
-        res.send(productList);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false });
-    }
-});
-
-// Fetch a single product by ID
-router.get(`/:id`, async (req, res) => {
-    try {
-        const product = await Product.findById(req.params.id).populate('category');
-        if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-        res.send(product);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false });
-    }
-});
-
-// Delete a product by ID
+// DELETE: Remove Product and delete images from Cloudinary
 router.delete('/:id', async (req, res) => {
-    try {
-        const product = await Product.findByIdAndRemove(req.params.id);
-        if (product) {
-            res.status(200).json({ success: true, message: 'The product is deleted!' });
-        } else {
-            res.status(404).json({ success: false, message: 'Product not found!' });
-        }
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, error: err });
-    }
-});
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).send('Product not found');
 
-// Get product count
-const getProductCount = async () => {
-    if (!getProductCount.cachedCount) {
-        getProductCount.cachedCount = await Product.countDocuments();
+    if (product.image?.public_id) await deleteFromCloudinary(product.image.public_id);
+    for (const img of product.images) {
+      await deleteFromCloudinary(img.public_id);
     }
-    return getProductCount.cachedCount;
-};
 
-router.get(`/get/count`, async (req, res) => {
-    try {
-        const productCount = await getProductCount();
-        res.send({ productCount });
-    } catch (error) {
-        console.error('Error getting product count:', error);
-        res.status(500).json({ success: false });
-    }
-});
-
-// Get featured products (limited by count)
-router.get(`/get/featured/:count`, async (req, res) => {
-    try {
-        const count = req.params.count ? parseInt(req.params.count) : 0;
-        const products = await Product.find({ isFeatured: true }).limit(count);
-        res.send(products);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false });
-    }
-});
-
-// Search products by name
-router.get('/products/search', async (req, res) => {
-    const keyword = req.query.q;
-    if (!keyword) return res.status(400).json({ error: 'Keyword is required.' });
-
-    try {
-        const searchResults = await Product.find({ name: { $regex: new RegExp(keyword, 'i') } }).lean();
-        const resultsWithoutId = searchResults.map((result) => {
-            const { _id, ...rest } = result;
-            return rest;
-        });
-        res.json(resultsWithoutId);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Endpoint to get a single product's image
-router.get('/image/:id', async (req, res) => {
-    try {
-        const product = await Product.findById(req.params.id);
-        if (!product) return res.status(404).json({ message: 'Product not found' });
-        res.status(200).json({ image: product.image });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-});
-
-// Endpoint to get a product's gallery images
-router.get('/gallery/:id', async (req, res) => {
-    try {
-        const product = await Product.findById(req.params.id);
-        if (!product) return res.status(404).json({ message: 'Product not found' });
-        res.status(200).json({ images: product.images });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
+    await Product.findByIdAndRemove(req.params.id);
+    res.status(200).json({ success: true, message: 'Product deleted' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false });
+  }
 });
 
 module.exports = router;

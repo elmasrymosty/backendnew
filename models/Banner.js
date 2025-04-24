@@ -1,11 +1,13 @@
 const mongoose = require('mongoose');
+
 const bannerSchema = mongoose.Schema({
-   
-    images: [{
-        type: String
-    }],
-  
-})
+    images: [
+        {
+            url: { type: String, required: true },
+            public_id: { type: String, required: true }
+        }
+    ]
+});
 
 bannerSchema.virtual('idString').get(function () {
     return this._id.toHexString();
@@ -14,4 +16,5 @@ bannerSchema.virtual('idString').get(function () {
 bannerSchema.set('toJSON', {
     virtuals: true,
 });
+
 exports.Banner = mongoose.model('Banner', bannerSchema);
