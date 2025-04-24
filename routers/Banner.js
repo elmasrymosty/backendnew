@@ -34,13 +34,16 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     }
 
     const imageUrls = req.files.map(file => file.path);
+    console.log('✅ Uploaded files:', req.files);
+
     const banner = new Banner({ images: imageUrls });
     await banner.save();
 
     res.status(201).json({ images: imageUrls });
   } catch (error) {
-    console.error('Upload error message:', error.message);
-    console.error('Upload error full:', error);
+    console.error('🔥 Upload error message:', error.message);
+    console.error('🔥 Upload error stack:', error.stack);
+    console.error('🔥 Full error:', error);
     res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
@@ -51,8 +54,9 @@ router.get('/', async (req, res) => {
     const banners = await Banner.find({}, 'images');
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
-    console.error('Upload error message:', error.message);
-    console.error('Upload error full:', error);
+    console.error('🔥 Upload error message:', error.message);
+    console.error('🔥 Upload error stack:', error.stack);
+    console.error('🔥 Full error:', error);
     res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
@@ -64,9 +68,10 @@ router.get('/:id', async (req, res) => {
     if (!banner) return res.status(404).json({ message: 'Banner not found' });
     res.status(200).json(banner);
   } catch (error) {
-    console.error('Upload error message:', error.message);
-console.error('Upload error full:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('🔥 Upload error message:', error.message);
+    console.error('🔥 Upload error stack:', error.stack);
+    console.error('🔥 Full error:', error);
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
 
@@ -93,8 +98,9 @@ router.put('/:id', upload.array('images', 10), async (req, res) => {
 
     res.status(200).json({ images: updatedBanner.images });
   } catch (error) {
-    console.error('Upload error message:', error.message);
-    console.error('Upload error full:', error);
+    console.error('🔥 Upload error message:', error.message);
+    console.error('🔥 Upload error stack:', error.stack);
+    console.error('🔥 Full error:', error);
     res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
@@ -111,8 +117,9 @@ router.delete('/:id', async (req, res) => {
 
     res.status(200).json({ success: true, message: 'The banner is deleted!' });
   } catch (error) {
-    console.error('Upload error message:', error.message);
-    console.error('Upload error full:', error);
+    console.error('🔥 Upload error message:', error.message);
+    console.error('🔥 Upload error stack:', error.stack);
+    console.error('🔥 Full error:', error);
     res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
