@@ -40,7 +40,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     const banner = new Banner({ images });
     await banner.save();
 
-    res.status(201).json({ images: imageUrls });
+    res.status(201).json({ images });
   } catch (error) {
     console.error("🔥 Upload error message:", error.message);
     console.error("🔥 Full error:", error);
