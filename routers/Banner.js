@@ -1,9 +1,9 @@
 const express = require('express');
+const { Banner } = require('../models/Banner');
 const router = express.Router();
 const mongoose = require('mongoose');
-const multer = require('multer');
-const { Banner } = require('../models/Banner');
 const { cloudinary, storage } = require('../cloudinary');
+const multer = require('multer');
 const upload = multer({ storage });
 
 // Helper to delete images from Cloudinary
@@ -27,8 +27,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     }
 
     const images = req.files.map(file => ({
-      url:  file.path,
-      
+      url: file.path,
       public_id: file.filename
     }));
 
@@ -46,11 +45,6 @@ router.post('/', upload.array('images', 7), async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const banners = await Banner.find({}, 'images');
-    // ✅ Modified to return 200 with empty array instead of 404
-    if (!banners.length) {
-      return res.status(200).json({ status: 'success', data: [] });
-    }
-
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
     console.error(error);
@@ -65,7 +59,6 @@ router.get('/:id', async (req, res) => {
     if (!banner) {
       return res.status(404).json({ message: 'Banner not found' });
     }
-
     res.status(200).json(banner);
   } catch (error) {
     console.error(error);
