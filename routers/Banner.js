@@ -1,19 +1,36 @@
 const express = require('express');
-const { Banner } = require('../models/Banner');
 const router = express.Router();
 const mongoose = require('mongoose');
-const { cloudinary, storage } = require('../cloudinary');
 const multer = require('multer');
+const { Banner } = require('../models/Banner');
+const { cloudinary, storage } = require('../cloudinary');
 const upload = multer({ storage });
 
-// Upload multiple images
+// Helper to delete images from Cloudinary
+const deleteImagesFromCloudinary = async (images = []) => {
+  for (const img of images) {
+    if (img.public_id) {
+      try {
+        await cloudinary.uploader.destroy(img.public_id);
+      } catch (err) {
+        console.error(`Failed to delete image: ${img.public_id}`, err.message);
+      }
+    }
+  }
+};
+
+// POST - Upload multiple images
 router.post('/', upload.array('images', 7), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No images uploaded.' });
     }
 
-    const images = req.files.map(file => ({ url: file.path, public_id: file.filename }));
+    const images = req.files.map(file => ({
+      url: file.path,
+      public_id: file.filename
+    }));
+
     const banner = new Banner({ images });
     await banner.save();
 
@@ -24,13 +41,14 @@ router.post('/', upload.array('images', 7), async (req, res) => {
   }
 });
 
-// GET all banner images
+// GET - All banner images
 router.get('/', async (req, res) => {
   try {
     const banners = await Banner.find({}, 'images');
-    if (banners.length === 0) {
+    if (!banners.length) {
       return res.status(404).json({ message: 'No banners found' });
     }
+
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
     console.error(error);
@@ -38,13 +56,14 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET single banner by ID
+// GET - Single banner by ID
 router.get('/:id', async (req, res) => {
   try {
     const banner = await Banner.findById(req.params.id);
     if (!banner) {
       return res.status(404).json({ message: 'Banner not found' });
     }
+
     res.status(200).json(banner);
   } catch (error) {
     console.error(error);
@@ -52,24 +71,31 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Update banner images
+// PUT - Update banner images
 router.put('/:id', upload.array('images', 10), async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({ message: 'Invalid banner ID' });
     }
 
-    const oldBanner = await Banner.findById(req.params.id);
+    const oldBanner = await Banner.findById(id);
     if (!oldBanner) {
       return res.status(404).json({ message: 'Banner not found' });
     }
 
-    // Delete old images from Cloudinary
-    for (const img of oldBanner.images) {
-      await cloudinary.uploader.destroy(img.public_id);
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'No new images uploaded.' });
     }
 
-    const newImages = req.files.map(file => ({ url: file.path, public_id: file.filename }));
+    await deleteImagesFromCloudinary(oldBanner.images);
+
+    const newImages = req.files.map(file => ({
+      url: file.path,
+      public_id: file.filename
+    }));
+
     oldBanner.images = newImages;
     const updatedBanner = await oldBanner.save();
 
@@ -80,24 +106,23 @@ router.put('/:id', upload.array('images', 10), async (req, res) => {
   }
 });
 
-// Delete a banner and its images from Cloudinary
+// DELETE - Banner and its images
 router.delete('/:id', async (req, res) => {
   try {
-    const banner = await Banner.findById(req.params.id);
+    const { id } = req.params;
+
+    const banner = await Banner.findById(id);
     if (!banner) {
       return res.status(404).json({ success: false, message: 'Banner not found!' });
     }
 
-    // Delete images from Cloudinary
-    for (const img of banner.images) {
-      await cloudinary.uploader.destroy(img.public_id);
-    }
+    await deleteImagesFromCloudinary(banner.images);
 
     await banner.remove();
     res.status(200).json({ success: true, message: 'The banner is deleted!' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, error: err });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
