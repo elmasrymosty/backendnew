@@ -32,19 +32,17 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No images uploaded.' });
     }
+    const images = req.files.map(file => ({
+        url: file.path,
+        public_id: file.filename, // أو استخرج من URL لو بتحتاج
+      }));
 
-    const imageUrls = req.files.map(file => file.path);
-    console.log("✅ Uploaded files:", req.files);
-console.log("✅ Request body:", req.body);
-
-
-    const banner = new Banner({ images: imageUrls });
+    const banner = new Banner({ images });
     await banner.save();
 
     res.status(201).json({ images: imageUrls });
   } catch (error) {
     console.error("🔥 Upload error message:", error.message);
-    console.error("🔥 Upload error stack:", error.stack);
     console.error("🔥 Full error:", error);
     res.status(500).json({
       error: error.message || "Unknown error",
@@ -103,7 +101,10 @@ router.put('/:id', upload.array('images', 10), async (req, res) => {
 
     await deleteImagesFromCloudinary(oldBanner.images);
 
-    const newImages = req.files.map(file => file.path);
+    const newImages = req.files.map(file => ({
+        url: file.path,
+        public_id: file.filename,
+      }));
     oldBanner.images = newImages;
     const updatedBanner = await oldBanner.save();
 
