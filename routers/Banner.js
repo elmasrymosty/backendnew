@@ -73,38 +73,44 @@ router.get('/:id', async (req, res) => {
 
 // ✅ PUT - Update banner images using FormData (same style as POST)
 router.put('/:id', upload.array('images', 7), async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: 'Invalid banner ID' });
+    try {
+      const { id } = req.params;
+      console.log('🔁 PUT called for banner ID:', id);
+      console.log('📦 Received files:', req.files);
+  
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ message: 'Invalid banner ID' });
+      }
+  
+      const banner = await Banner.findById(id);
+      if (!banner) return res.status(404).json({ message: 'Banner not found' });
+  
+      // حذف الصور القديمة فقط إذا كانت موجودة
+      if (banner.images && banner.images.length > 0) {
+        await deleteImagesFromCloudinary(banner.images);
+      }
+  
+      // التحقق من وجود صور جديدة
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ message: 'No new images uploaded.' });
+      }
+  
+      const newImages = req.files.map(file => ({
+        url: file.path,
+        public_id: file.filename,
+      }));
+  
+      banner.images = newImages;
+      await banner.save();
+  
+      res.status(200).json({ images: banner.images });
+    } catch (error) {
+      console.error('🔥 Error in PUT /banners/:id', error);
+      res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
-
-    const banner = await Banner.findById(id);
-    if (!banner) return res.status(404).json({ message: 'Banner not found' });
-
-    // Delete old images
-    await deleteImagesFromCloudinary(banner.images);
-
-    // Add new images
-    if (!req.files?.length) {
-      return res.status(400).json({ message: 'No new images uploaded.' });
-    }
-
-    const newImages = req.files.map(file => ({
-      url: file.path,
-      public_id: file.filename,
-    }));
-
-    banner.images = newImages;
-    await banner.save();
-
-    res.status(200).json({ images: banner.images });
-  } catch (error) {
-    console.error('🔥 PUT error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+  });
+  
+  
 
 // ✅ DELETE - Remove banner and its images
 router.delete('/:id', async (req, res) => {
