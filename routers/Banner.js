@@ -1,4 +1,3 @@
-// routes/banner.js
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
@@ -7,7 +6,13 @@ const { Banner } = require('../models/Banner');
 const { cloudinary, storage } = require('../cloudinary');
 const upload = multer({ storage });
 
-// Helper to delete images from Cloudinary
+// 🔧 Utility: Extract Cloudinary public_id from URL
+const getPublicIdFromUrl = (url) => {
+  const matches = url.match(/\/([^/]+)\.(jpg|jpeg|png|webp|gif)$/i);
+  return matches ? matches[1] : null;
+};
+
+// 🔧 Utility: Delete images from Cloudinary
 const deleteImagesFromCloudinary = async (images = []) => {
   for (const img of images) {
     const publicId = typeof img === 'string' ? getPublicIdFromUrl(img) : img.public_id;
@@ -15,22 +20,16 @@ const deleteImagesFromCloudinary = async (images = []) => {
       try {
         await cloudinary.uploader.destroy(publicId);
       } catch (err) {
-        console.error(`Failed to delete image: ${publicId}`, err.message);
+        console.error(`❌ Failed to delete image: ${publicId}`, err.message);
       }
     }
   }
 };
 
-// Extract public_id from Cloudinary URL
-const getPublicIdFromUrl = (url) => {
-  const matches = url.match(/\/([^/]+)\.(jpg|jpeg|png|webp|gif)$/i);
-  return matches ? matches[1] : null;
-};
-
-// POST - Upload multiple images
+// ✅ POST - Upload multiple images
 router.post('/', upload.array('images', 7), async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
+    if (!req.files?.length) {
       return res.status(400).json({ message: 'No images uploaded.' });
     }
 
@@ -49,7 +48,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
   }
 });
 
-// GET - All banner images
+// ✅ GET - All banner images
 router.get('/', async (req, res) => {
   try {
     const banners = await Banner.find({}, 'images');
@@ -60,7 +59,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET - Single banner by ID
+// ✅ GET - Single banner by ID
 router.get('/:id', async (req, res) => {
   try {
     const banner = await Banner.findById(req.params.id);
@@ -72,36 +71,42 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT - Update banner images using links instead of files
-router.put('/:id', async (req, res) => {
+// ✅ PUT - Update banner images using FormData (same style as POST)
+router.put('/:id', upload.array('images', 7), async (req, res) => {
   try {
     const { id } = req.params;
-    const { images } = req.body;
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({ message: 'Invalid banner ID' });
     }
 
-    if (!images || !Array.isArray(images)) {
-      return res.status(400).json({ message: 'Images are required and should be an array' });
+    const banner = await Banner.findById(id);
+    if (!banner) return res.status(404).json({ message: 'Banner not found' });
+
+    // Delete old images
+    await deleteImagesFromCloudinary(banner.images);
+
+    // Add new images
+    if (!req.files?.length) {
+      return res.status(400).json({ message: 'No new images uploaded.' });
     }
 
-    const oldBanner = await Banner.findById(id);
-    if (!oldBanner) return res.status(404).json({ message: 'Banner not found' });
+    const newImages = req.files.map(file => ({
+      url: file.path,
+      public_id: file.filename,
+    }));
 
-    await deleteImagesFromCloudinary(oldBanner.images);
+    banner.images = newImages;
+    await banner.save();
 
-    oldBanner.images = images;
-    const updatedBanner = await oldBanner.save();
-
-    res.status(200).json({ images: updatedBanner.images });
+    res.status(200).json({ images: banner.images });
   } catch (error) {
     console.error('🔥 PUT error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// DELETE - Remove banner and its images
+// ✅ DELETE - Remove banner and its images
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
