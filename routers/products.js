@@ -163,5 +163,19 @@ router.get('/', async (req, res) => {
     }
   });
   
+  // GET: Get a single product by ID
+router.get('/:id', async (req, res) => {
+    try {
+      const product = await Product.findById(req.params.id).populate('category');
+  
+      if (!product) return res.status(404).send('Product not found');
+  
+      res.send(product);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send('Internal server error');
+    }
+  });
+  
 
 module.exports = router;
