@@ -36,7 +36,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
 
     res.status(201).json({ images });
   } catch (error) {
-    console.error(error);
+    console.error('Upload error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -61,7 +61,7 @@ router.get('/:id', async (req, res) => {
     }
     res.status(200).json(banner);
   } catch (error) {
-    console.error(error);
+    console.error('Upload error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -96,7 +96,7 @@ router.put('/:id', upload.array('images', 10), async (req, res) => {
 
     res.status(200).json({ images: updatedBanner.images });
   } catch (error) {
-    console.error(error);
+    console.error('Upload error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -116,7 +116,7 @@ router.delete('/:id', async (req, res) => {
     await banner.remove();
     res.status(200).json({ success: true, message: 'The banner is deleted!' });
   } catch (err) {
-    console.error(err);
+    console.error('Upload error:', error);
     res.status(500).json({ success: false, error: err.message });
   }
 });
