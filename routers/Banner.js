@@ -27,7 +27,8 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     }
 
     const images = req.files.map(file => ({
-      url: file.path,
+      url:  file.secure_url,
+      
       public_id: file.filename
     }));
 
