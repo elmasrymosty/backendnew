@@ -50,7 +50,7 @@ router.get('/', async (req, res) => {
     const banners = await Banner.find({}, 'images');
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
-    console.error('Fetch all error:', error);
+    console.error('Upload error:', JSON.stringify(error, null, 2));
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 });
@@ -62,7 +62,7 @@ router.get('/:id', async (req, res) => {
     if (!banner) return res.status(404).json({ message: 'Banner not found' });
     res.status(200).json(banner);
   } catch (error) {
-    console.error('Get by ID error:', error);
+    console.error('Upload error:', JSON.stringify(error, null, 2));
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -90,7 +90,7 @@ router.put('/:id', upload.array('images', 10), async (req, res) => {
 
     res.status(200).json({ images: updatedBanner.images });
   } catch (error) {
-    console.error('Update error:', error);
+    console.error('Upload error:', JSON.stringify(error, null, 2));
     res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
@@ -107,7 +107,7 @@ router.delete('/:id', async (req, res) => {
 
     res.status(200).json({ success: true, message: 'The banner is deleted!' });
   } catch (err) {
-    console.error('Delete error:', err);
+    console.error('Upload error:', JSON.stringify(error, null, 2));
     res.status(500).json({ success: false, error: err.message });
   }
 });
