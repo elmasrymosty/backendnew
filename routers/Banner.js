@@ -1,9 +1,10 @@
+// routes/banner.js
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const multer = require('multer');
 const { Banner } = require('../models/Banner');
-const { cloudinary, storage } = require('../cloudinary'); // تأكد من صحة هذا المسار
+const { cloudinary, storage } = require('../cloudinary');
 const upload = multer({ storage });
 
 // Helper to delete images from Cloudinary
@@ -32,113 +33,88 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No images uploaded.' });
     }
+
     const images = req.files.map(file => ({
-        url: file.path,
-        public_id: file.filename, // أو استخرج من URL لو بتحتاج
-      }));
+      url: file.path,
+      public_id: file.filename,
+    }));
 
     const banner = new Banner({ images });
     await banner.save();
 
     res.status(201).json({ images });
   } catch (error) {
-    console.error("🔥 Upload error message:", error.message);
-    console.error("🔥 Full error:", error);
-    res.status(500).json({
-      error: error.message || "Unknown error",
-      stack: error.stack || "",
-    });
+    console.error('🔥 POST error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// GET all banner images
+// GET - All banner images
 router.get('/', async (req, res) => {
   try {
     const banners = await Banner.find({}, 'images');
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
-    console.error("🔥 Upload error message:", error.message);
-    console.error("🔥 Upload error stack:", error.stack);
-    console.error("🔥 Full error:", error);
-    res.status(500).json({
-      error: error.message || "Unknown error",
-      stack: error.stack || "",
-    });
+    console.error('🔥 GET all error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// GET banner by ID
+// GET - Single banner by ID
 router.get('/:id', async (req, res) => {
   try {
     const banner = await Banner.findById(req.params.id);
     if (!banner) return res.status(404).json({ message: 'Banner not found' });
     res.status(200).json(banner);
   } catch (error) {
-    console.error("🔥 Upload error message:", error.message);
-    console.error("🔥 Upload error stack:", error.stack);
-    console.error("🔥 Full error:", error);
-    res.status(500).json({
-      error: error.message || "Unknown error",
-      stack: error.stack || "",
-    });
+    console.error('🔥 GET by ID error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// PUT - Update banner images
-router.put('/:id', upload.array('images', 10), async (req, res) => {
+// PUT - Update banner images using links instead of files
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { images } = req.body;
+
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({ message: 'Invalid banner ID' });
+    }
+
+    if (!images || !Array.isArray(images)) {
+      return res.status(400).json({ message: 'Images are required and should be an array' });
     }
 
     const oldBanner = await Banner.findById(id);
     if (!oldBanner) return res.status(404).json({ message: 'Banner not found' });
 
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ message: 'No new images uploaded.' });
-    }
-
     await deleteImagesFromCloudinary(oldBanner.images);
 
-    const newImages = req.files.map(file => ({
-        url: file.path,
-        public_id: file.filename,
-      }));
-    oldBanner.images = newImages;
+    oldBanner.images = images;
     const updatedBanner = await oldBanner.save();
 
     res.status(200).json({ images: updatedBanner.images });
   } catch (error) {
-    console.error("🔥 Upload error message:", error.message);
-    console.error("🔥 Upload error stack:", error.stack);
-    console.error("🔥 Full error:", error);
-    res.status(500).json({
-      error: error.message || "Unknown error",
-      stack: error.stack || "",
-    });
+    console.error('🔥 PUT error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// DELETE - Banner and its images
+// DELETE - Remove banner and its images
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const banner = await Banner.findById(id);
-    if (!banner) return res.status(404).json({ success: false, message: 'Banner not found!' });
+    if (!banner) return res.status(404).json({ message: 'Banner not found!' });
 
     await deleteImagesFromCloudinary(banner.images);
     await banner.remove();
 
     res.status(200).json({ success: true, message: 'The banner is deleted!' });
   } catch (error) {
-    console.error("🔥 Upload error message:", error.message);
-    console.error("🔥 Upload error stack:", error.stack);
-    console.error("🔥 Full error:", error);
-    res.status(500).json({
-      error: error.message || "Unknown error",
-      stack: error.stack || "",
-    });
+    console.error('🔥 DELETE error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
