@@ -6,6 +6,7 @@ const { cloudinary, storage } = require('../cloudinary'); // adjust path as need
 const multer = require('multer');
 const upload = multer({ storage });
 
+const cloudinary = require('cloudinary').v2;
 
 
 // Upload multiple images
