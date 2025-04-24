@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const { storage } = require('../cloudinary'); // ensure path is correct for your Cloudinary config
 const upload = multer({ storage });
-const cloudinary = require('cloudinary').v2;
+
 
 // Upload image to Cloudinary (helper function)
 const uploadToCloudinary = async (filePath) => {
