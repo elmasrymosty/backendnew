@@ -22,12 +22,12 @@ const deleteImagesFromCloudinary = async (images = []) => {
 // POST - Upload multiple images
 router.post('/', upload.array('images', 7), async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
+    if (!req.files?.length) {
       return res.status(400).json({ message: 'No images uploaded.' });
     }
 
     const images = req.files.map(file => ({
-      url:  file.secure_url,
+      url:  file.path,
       
       public_id: file.filename
     }));
