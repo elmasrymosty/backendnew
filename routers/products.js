@@ -114,4 +114,54 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET: Get all products
+router.get('/', async (req, res) => {
+    try {
+      const filter = req.query.categories ? { category: req.query.categories.split(',') } : {};
+      const products = await Product.find(filter).populate('category');
+      res.send(products);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send('Failed to fetch products');
+    }
+  });
+  
+  // GET: Get product count
+  router.get('/get/count', async (req, res) => {
+    try {
+      const productCount = await Product.countDocuments();
+      res.send({ productCount });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false });
+    }
+  });
+  
+  // GET: Get featured products
+  router.get('/get/featured/:count', async (req, res) => {
+    try {
+      const count = parseInt(req.params.count) || 0;
+      const featured = await Product.find({ isFeatured: true }).limit(count);
+      res.send(featured);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ success: false });
+    }
+  });
+  
+  // GET: Search products
+  router.get('/products/search', async (req, res) => {
+    const keyword = req.query.q;
+    if (!keyword) return res.status(400).json({ error: 'Keyword is required.' });
+  
+    try {
+      const results = await Product.find({ name: { $regex: keyword, $options: 'i' } });
+      res.json(results);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+  
+
 module.exports = router;
