@@ -40,7 +40,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     res.status(201).json({ images: imageUrls });
   } catch (error) {
     console.error('Upload error message:', error.message);
-console.error('Upload error full:', error);
+    console.error('Upload error full:', error);
     res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
@@ -52,8 +52,8 @@ router.get('/', async (req, res) => {
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
     console.error('Upload error message:', error.message);
-console.error('Upload error full:', error);
-    res.status(500).json({ status: 'error', message: 'Internal server error' });
+    console.error('Upload error full:', error);
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
 
@@ -110,10 +110,10 @@ router.delete('/:id', async (req, res) => {
     await banner.remove();
 
     res.status(200).json({ success: true, message: 'The banner is deleted!' });
-  } catch (err) {
+  } catch (error) {
     console.error('Upload error message:', error.message);
     console.error('Upload error full:', error);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
 
