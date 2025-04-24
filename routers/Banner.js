@@ -105,7 +105,9 @@ router.put('/:id', upload.array('images', 7), async (req, res) => {
   
       res.status(200).json({ images: banner.images });
     } catch (error) {
-      console.error('🔥 Error in PUT /banners/:id', error);
+        console.error('🔥 Error in PUT /banners/:id', error.message, error.stack);
+        console.log(JSON.stringify(error, null, 2));
+
       res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
   });
