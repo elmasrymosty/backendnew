@@ -51,7 +51,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
 // ✅ GET - All banner images
 router.get('/', async (req, res) => {
   try {
-    const banners = await Banner.find({}, 'images');
+    const banners = await Banner.find({}, 'images _id');
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
     console.error('🔥 GET all error:', error);
