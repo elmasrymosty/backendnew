@@ -62,31 +62,38 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ✅ updated banner
+
+// Cloudinary upload helper
+const uploadToCloudinary = async (filePath) => {
+  const result = await cloudinary.uploader.upload(filePath, { folder: 'banners' });
+  return {
+    url: result.secure_url,
+    public_id: result.public_id,
+  };
+};
+
+// 📌 Update an existing banner
 router.put('/:id', upload.array('images', 10), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ message: 'Invalid banner ID' });
     }
 
-    const newImages = req.files.map(file => ({
-      url: file.path,
-      public_id: file.filename,
-    }));
+    const images = await Promise.all(req.files.map(file => uploadToCloudinary(file.path)));
 
-    const banner = await Banner.findByIdAndUpdate(
+    const updatedBanner = await Banner.findByIdAndUpdate(
       req.params.id,
-      { images: newImages },
+      { images },
       { new: true }
     );
 
-    if (!banner) {
+    if (!updatedBanner) {
       return res.status(500).json({ message: 'The banner cannot be updated!' });
     }
 
-    res.status(200).json({ images: banner.images });
+    res.status(200).json(updatedBanner);
   } catch (error) {
-    console.error('🔥 PUT /api/v1/banners/:id error:', error);
+    console.error('🔥 PUT /banners/:id error:', error);
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
