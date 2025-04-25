@@ -62,15 +62,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-
-// Cloudinary upload helper
-const uploadToCloudinary = async (filePath) => {
-  const result = await cloudinary.uploader.upload(filePath, { folder: 'banners' });
-  return {
-    url: result.secure_url,
-    public_id: result.public_id,
-  };
-};
+// ✅ updated banner
 
 // 📌 Update an existing banner
 router.put('/:id', upload.array('images', 10), async (req, res) => {
