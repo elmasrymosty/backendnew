@@ -72,41 +72,38 @@ router.get('/:id', async (req, res) => {
 });
 
 // ✅ PUT - Update banner images using FormData (same style as POST)
-router.post('/update/:id', upload.array('images', 7), async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log('🔁 POST /update/:id called for banner ID:', id);
-      console.log('📦 Received files:', req.files);
-  
-      if (!mongoose.isValidObjectId(id)) {
-        return res.status(400).json({ message: 'Invalid banner ID' });
+router.put('/update/:id', upload.fields([
+  { name: 'images', maxCount: 5 } // support multiple banner images
+]), async (req, res) => {
+  try {
+      const bannerId = req.params.id;
+      const banner = await Banner.findById(bannerId);
+
+      if (!banner) {
+          return res.status(404).send('Banner not found');
       }
-  
-      const banner = await Banner.findById(id);
-      if (!banner) return res.status(404).json({ message: 'Banner not found' });
-  
-      if (banner.images?.length) {
-        await deleteImagesFromCloudinary(banner.images);
+
+      // Update basic fields
+      banner.title = req.body.title;
+      banner.description = req.body.description;
+
+      // Upload new images if provided
+      if (req.files && req.files.images && req.files.images.length > 0) {
+          const uploadedImages = await Promise.all(
+              req.files.images.map(file => uploadToCloudinary(file.path))
+          );
+          banner.images = uploadedImages; // save array of Cloudinary URLs
       }
-  
-      if (!req.files?.length) {
-        return res.status(400).json({ message: 'No new images uploaded.' });
-      }
-  
-      const newImages = req.files.map(file => ({
-        url: file.path,
-        public_id: file.filename,
-      }));
-  
-      banner.images = newImages;
-      await banner.save();
-  
-      res.status(200).json({ images: banner.images });
-    } catch (error) {
-      console.error('🔥 Error in POST /update/:id', error.message, error.stack);
-      res.status(500).json({ message: 'Internal Server Error', error: error.message });
-    }
-  });
+
+      const updatedBanner = await banner.save();
+      res.send(updatedBanner);
+
+  } catch (error) {
+      console.error(error);
+      res.status(500).send('Internal server error');
+  }
+});
+
   
   
   
