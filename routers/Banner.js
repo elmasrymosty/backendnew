@@ -6,27 +6,14 @@ const { Banner } = require('../models/Banner');
 const { cloudinary, storage } = require('../cloudinary');
 const upload = multer({ storage });
 
-// 🔧 Utility: Extract Cloudinary public_id from URL
-const getPublicIdFromUrl = (url) => {
-  const matches = url.match(/\/([^/]+)\.(jpg|jpeg|png|webp|gif)$/i);
-  return matches ? matches[1] : null;
+// ✅  deleteloudinary
+const deleteImagesFromCloudinary = async (images) => {
+  if (!images || !images.length) return;
+  const deletions = images.map(img => cloudinary.uploader.destroy(img.public_id));
+  await Promise.all(deletions);
 };
 
-// 🔧 Utility: Delete images from Cloudinary
-const deleteImagesFromCloudinary = async (images = []) => {
-  for (const img of images) {
-    const publicId = typeof img === 'string' ? getPublicIdFromUrl(img) : img.public_id;
-    if (publicId) {
-      try {
-        await cloudinary.uploader.destroy(publicId);
-      } catch (err) {
-        console.error(`❌ Failed to delete image: ${publicId}`, err.message);
-      }
-    }
-  }
-};
-
-// ✅ POST - Upload multiple images
+// ✅ new 
 router.post('/', upload.array('images', 7), async (req, res) => {
   try {
     if (!req.files?.length) {
@@ -41,74 +28,70 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     const banner = new Banner({ images });
     await banner.save();
 
-    res.status(201).json({ images });
+    res.status(201).json({
+      message: 'Images uploaded successfully',
+      bannerId: banner._id,
+      images: banner.images,
+    });
   } catch (error) {
-    console.error('🔥 POST error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('🔥 POST /api/v1/banners error:', error);
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
-// ✅ GET - All banner images
+// ✅ fetsh 
 router.get('/', async (req, res) => {
   try {
     const banners = await Banner.find({}, 'images _id');
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
-    console.error('🔥 GET all error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('🔥 GET /api/v1/banners error:', error);
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
-// ✅ GET - Single banner by ID
+// ✅ single banner idID
 router.get('/:id', async (req, res) => {
   try {
     const banner = await Banner.findById(req.params.id);
     if (!banner) return res.status(404).json({ message: 'Banner not found' });
     res.status(200).json(banner);
   } catch (error) {
-    console.error('🔥 GET by ID error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('🔥 GET /api/v1/banners/:id error:', error);
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
-// ✅ PUT - Update banner images using FormData (same style as POST)
-router.put('/update/:id', upload.fields([
-  { name: 'images', maxCount: 5 } // support multiple banner images
-]), async (req, res) => {
+// ✅ updated banner
+router.put('/:id', upload.array('images', 10), async (req, res) => {
   try {
-      const bannerId = req.params.id;
-      const banner = await Banner.findById(bannerId);
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid banner ID' });
+    }
 
-      if (!banner) {
-          return res.status(404).send('Banner not found');
-      }
+    const newImages = req.files.map(file => ({
+      url: file.path,
+      public_id: file.filename,
+    }));
 
-      // Update basic fields
-      banner.title = req.body.title;
-      banner.description = req.body.description;
+    const banner = await Banner.findByIdAndUpdate(
+      req.params.id,
+      { images: newImages },
+      { new: true }
+    );
 
-      // Upload new images if provided
-      if (req.files && req.files.images && req.files.images.length > 0) {
-          const uploadedImages = await Promise.all(
-              req.files.images.map(file => uploadToCloudinary(file.path))
-          );
-          banner.images = uploadedImages; // save array of Cloudinary URLs
-      }
+    if (!banner) {
+      return res.status(500).json({ message: 'The banner cannot be updated!' });
+    }
 
-      const updatedBanner = await banner.save();
-      res.send(updatedBanner);
-
+    res.status(200).json({ images: banner.images });
   } catch (error) {
-      console.error(error);
-      res.status(500).send('Internal server error');
+    console.error('🔥 PUT /api/v1/banners/:id error:', error);
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
-  
-  
-  
-
-// ✅ DELETE - Remove banner and its images
+// ✅ حذف بنر
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -120,8 +103,8 @@ router.delete('/:id', async (req, res) => {
 
     res.status(200).json({ success: true, message: 'The banner is deleted!' });
   } catch (error) {
-    console.error('🔥 DELETE error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('🔥 DELETE /api/v1/banners/:id error:', error);
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
