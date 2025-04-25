@@ -6,9 +6,14 @@ const { Banner } = require('../models/Banner');
 const { cloudinary, storage } = require('../cloudinary');
 const upload = multer({ storage });
 
+// ✅ دالة حذف الصور من Cloudinary
+const deleteImagesFromCloudinary = async (images) => {
+  if (!images || !images.length) return;
+  const deletions = images.map(img => cloudinary.uploader.destroy(img.public_id));
+  await Promise.all(deletions);
+};
 
-
-// Upload multiple images
+// ✅ إنشاء بنر جديد
 router.post('/', upload.array('images', 7), async (req, res) => {
   try {
     if (!req.files?.length) {
@@ -16,7 +21,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     }
 
     const images = req.files.map(file => ({
-      url: file.path,        // هذا هو رابط Cloudinary
+      url: file.path,
       public_id: file.filename,
     }));
 
@@ -28,64 +33,65 @@ router.post('/', upload.array('images', 7), async (req, res) => {
       bannerId: banner._id,
       images: banner.images,
     });
-
   } catch (error) {
-    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
-  res.status(500).json({ error: error.message || 'Internal Server Error' });
+    console.error('🔥 POST /api/v1/banners error:', error);
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
-    
-   // GET all banner images
+// ✅ جلب جميع البنرات
 router.get('/', async (req, res) => {
   try {
     const banners = await Banner.find({}, 'images _id');
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
-    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
+    console.error('🔥 GET /api/v1/banners error:', error);
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
-// GET single banner by ID
+// ✅ جلب بنر واحد حسب ID
 router.get('/:id', async (req, res) => {
   try {
     const banner = await Banner.findById(req.params.id);
     if (!banner) return res.status(404).json({ message: 'Banner not found' });
     res.status(200).json(banner);
   } catch (error) {
-    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
+    console.error('🔥 GET /api/v1/banners/:id error:', error);
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
-
-// Update banner images
+// ✅ تحديث بنر بصور جديدة
 router.put('/:id', upload.array('images', 10), async (req, res) => {
   try {
-      if (!mongoose.isValidObjectId(req.params.id)) {
-          return res.status(400).json({ message: 'Invalid banner ID' });
-      }
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid banner ID' });
+    }
 
-      const imageUrls = req.files.map(file => file.path);
+    const newImages = req.files.map(file => ({
+      url: file.path,
+      public_id: file.filename,
+    }));
 
-      const banner = await Banner.findByIdAndUpdate(
-          req.params.id,
-          { images: imageUrls },
-          { new: true }
-      );
+    const banner = await Banner.findByIdAndUpdate(
+      req.params.id,
+      { images: newImages },
+      { new: true }
+    );
 
-      if (!banner) {
-          return res.status(500).json({ message: 'The banner cannot be updated!' });
-      }
+    if (!banner) {
+      return res.status(500).json({ message: 'The banner cannot be updated!' });
+    }
 
-      res.status(200).json({ images: banner.images });
+    res.status(200).json({ images: banner.images });
   } catch (error) {
-    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
+    console.error('🔥 PUT /api/v1/banners/:id error:', error);
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
-// Delete a banner
+
+// ✅ حذف بنر
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -97,8 +103,8 @@ router.delete('/:id', async (req, res) => {
 
     res.status(200).json({ success: true, message: 'The banner is deleted!' });
   } catch (error) {
-    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
-  res.status(500).json({ error: error.message || 'Internal Server Error' });
+    console.error('🔥 DELETE /api/v1/banners/:id error:', error);
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
