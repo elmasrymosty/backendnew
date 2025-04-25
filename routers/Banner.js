@@ -14,15 +14,26 @@ const deleteImagesFromCloudinary = async (images) => {
 };
 
 // ✅ new 
-router.post('/', upload.array('images', 7), async (req, res) => {
+router.post('/', (req, res, next) => {
+  upload.array('images', 7)(req, res, function (err) {
+    if (err) {
+      console.error('🔥 Multer upload error:', err);
+      return res.status(500).json({ error: err.message || 'Upload failed' });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
-    if (!req.files?.length) {
+    console.log('📸 req.files:', req.files);
+    console.log('📝 req.body:', req.body);
+
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No images uploaded.' });
     }
 
     const images = req.files.map(file => ({
       url: file.path,
-      public_id: file.filename
+      public_id: file.filename,
     }));
 
     const banner = new Banner({ images });
@@ -34,10 +45,12 @@ router.post('/', upload.array('images', 7), async (req, res) => {
       images: banner.images,
     });
   } catch (error) {
-    console.error('🔥 POST /api/v1/banners error:', error);
-    res.status(500).json({ error: error.message || 'Internal Server Error' });
+    console.error('🔥 Error uploading images:', error);
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
+
+
 
 
 // ✅ fetsh 
