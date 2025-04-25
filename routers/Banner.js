@@ -39,7 +39,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
       images: banner.images,
     });
   } catch (error) {
-    console.error('🔥 POST /api/v1/banners error:', error);
+    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
