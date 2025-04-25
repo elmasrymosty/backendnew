@@ -20,15 +20,10 @@ router.post('/', upload.array('images', 7), async (req, res) => {
       return res.status(400).json({ message: 'No images uploaded.' });
     }
 
-    const images = await Promise.all(
-      req.files.map(async (file) => {
-        const result = await uploadToCloudinary(file.path);
-        return {
-          url: result.secure_url,
-          public_id: result.public_id,
-        };
-      })
-    );
+    const images = req.files.map(file => ({
+      url: file.path,
+      public_id: file.filename
+    }));
 
     const banner = new Banner({ images });
     await banner.save();
@@ -39,10 +34,11 @@ router.post('/', upload.array('images', 7), async (req, res) => {
       images: banner.images,
     });
   } catch (error) {
-    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    console.error('🔥 POST /api/v1/banners error:', error);
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
+
 
 // ✅ fetsh 
 router.get('/', async (req, res) => {
@@ -76,7 +72,10 @@ router.put('/update/:id', upload.array('images', 10), async (req, res) => {
       return res.status(400).json({ message: 'Invalid banner ID' });
     }
 
-    const images = await Promise.all(req.files.map(file => uploadToCloudinary(file.path)));
+    const images = req.files.map(file => ({
+      url: file.path,
+      public_id: file.filename
+    }));
 
     const updatedBanner = await Banner.findByIdAndUpdate(
       req.params.id,
@@ -94,6 +93,7 @@ router.put('/update/:id', upload.array('images', 10), async (req, res) => {
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
+
 
 
 // ✅ حذف بنر
