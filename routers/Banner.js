@@ -65,7 +65,7 @@ router.get('/:id', async (req, res) => {
 // ✅ updated banner
 
 // 📌 Update an existing banner
-router.put('/:id', upload.array('images', 10), async (req, res) => {
+router.put('/update/:id', upload.array('images', 10), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ message: 'Invalid banner ID' });
