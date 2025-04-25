@@ -22,7 +22,7 @@ router.post('/', upload.array('images', 7), async (req, res) => {
 
     const banner = new Banner({ images });
     const imageUrls = req.files.map(file => file.url); // ✅ Clou // Cloudinary returns .path as URL
-    const banner = new Banner({ images: imageUrls });
+   // const banner = new Banner({ images: imageUrls });
     await banner.save();
 
     res.status(201).json({ images: imageUrls });
