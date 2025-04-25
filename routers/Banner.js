@@ -30,8 +30,8 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('🔥 POST /api/v1/banners error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
+  res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
@@ -42,8 +42,8 @@ router.get('/', async (req, res) => {
     const banners = await Banner.find({}, 'images _id');
     res.status(200).json({ status: 'success', data: banners });
   } catch (error) {
-    console.error('🔥 GET all error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
@@ -54,8 +54,8 @@ router.get('/:id', async (req, res) => {
     if (!banner) return res.status(404).json({ message: 'Banner not found' });
     res.status(200).json(banner);
   } catch (error) {
-    console.error('🔥 GET by ID error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
@@ -81,8 +81,8 @@ router.put('/:id', upload.array('images', 10), async (req, res) => {
 
       res.status(200).json({ images: banner.images });
   } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: error.message });
+    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 // Delete a banner
@@ -97,8 +97,8 @@ router.delete('/:id', async (req, res) => {
 
     res.status(200).json({ success: true, message: 'The banner is deleted!' });
   } catch (error) {
-    console.error('🔥 DELETE error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('🔥 POST /api/v1/banners error:', JSON.stringify(error, null, 2));
+  res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
 
