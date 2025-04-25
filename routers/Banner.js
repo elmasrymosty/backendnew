@@ -16,21 +16,25 @@ router.post('/', upload.array('images', 7), async (req, res) => {
     }
 
     const images = req.files.map(file => ({
-      url: file.path,
+      url: file.path,        // هذا هو رابط Cloudinary
       public_id: file.filename,
     }));
 
     const banner = new Banner({ images });
-    const imageUrls = req.files.map(file => file.url); // ✅ Clou // Cloudinary returns .path as URL
-   // const banner = new Banner({ images: imageUrls });
     await banner.save();
 
-    res.status(201).json({ images: imageUrls });
-} catch (error) {
-    console.error(error);
+    res.status(201).json({
+      message: 'Images uploaded successfully',
+      bannerId: banner._id,
+      images: banner.images,
+    });
+
+  } catch (error) {
+    console.error('🔥 POST /api/v1/banners error:', error);
     res.status(500).json({ error: error.message });
-}
+  }
 });
+
     
    // GET all banner images
 router.get('/', async (req, res) => {
