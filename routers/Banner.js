@@ -14,8 +14,9 @@ const deleteImagesFromCloudinary = async (images) => {
 };
 
 // ✅ new 
+// Create a new banner (supports images/videos)
 router.post('/', (req, res, next) => {
-  upload.array('images', 7)(req, res, function (err) {
+  upload.array('images', 6)(req, res, function (err) {
     if (err) {
       console.error('🔥 Multer upload error:', err);
       return res.status(500).json({ error: err.message || 'Upload failed' });
@@ -24,31 +25,30 @@ router.post('/', (req, res, next) => {
   });
 }, async (req, res) => {
   try {
-    console.log('📸 req.files:', req.files);
-    console.log('📝 req.body:', req.body);
-
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ message: 'No images uploaded.' });
+      return res.status(400).json({ message: 'No files uploaded.' });
     }
 
     const images = req.files.map(file => ({
       url: file.path,
       public_id: file.filename,
+      resource_type: file.mimetype.startsWith('video/') ? 'video' : 'image',
     }));
 
     const banner = new Banner({ images });
     await banner.save();
 
     res.status(201).json({
-      message: 'Images uploaded successfully',
+      message: 'Files uploaded successfully',
       bannerId: banner._id,
       images: banner.images,
     });
   } catch (error) {
-    console.error('🔥 Error uploading images:', error);
+    console.error('🔥 Error uploading files:', error);
     res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
+
 
 
 
@@ -79,6 +79,7 @@ router.get('/:id', async (req, res) => {
 // ✅ updated banner
 
 // 📌 Update an existing banner
+// Update an existing banner (supports images/videos)
 router.put('/update/:id', upload.array('images', 10), async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
@@ -87,7 +88,8 @@ router.put('/update/:id', upload.array('images', 10), async (req, res) => {
 
     const images = req.files.map(file => ({
       url: file.path,
-      public_id: file.filename
+      public_id: file.filename,
+      resource_type: file.mimetype.startsWith('video/') ? 'video' : 'image',
     }));
 
     const updatedBanner = await Banner.findByIdAndUpdate(
@@ -106,6 +108,7 @@ router.put('/update/:id', upload.array('images', 10), async (req, res) => {
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 });
+
 
 
 

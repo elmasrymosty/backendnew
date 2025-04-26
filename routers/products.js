@@ -22,7 +22,8 @@ const uploadToCloudinary = async (filePath) => {
 // Route to add a new product with both single and multiple images
 router.post('/', upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'images', maxCount: 5 }
+    { name: 'images', maxCount: 5 },
+    { name: 'video', maxCount: 3 }
 ]), async (req, res) => {
     try {
         const category = await Category.findById(req.body.category);
@@ -30,7 +31,7 @@ router.post('/', upload.fields([
 
         const singleImageURL = req.files.image ? await uploadToCloudinary(req.files.image[0].path) : null;
         const imagesPaths = req.files.images ? await Promise.all(req.files.images.map(file => uploadToCloudinary(file.path))) : [];
-
+        const videoURL = req.files.video ? await uploadToCloudinary(req.files.video[0].path, 'video') : null;
         let product = new Product({
             name: req.body.name,
             description: req.body.description,
@@ -45,6 +46,7 @@ router.post('/', upload.fields([
             isFeatured: req.body.isFeatured,
             image: singleImageURL, // Single image,
             images: imagesPaths,
+            video: videoURL // 🌟 save video url
         });
 
         product = await product.save();
@@ -61,7 +63,7 @@ router.post('/', upload.fields([
 // Route to update a product by ID
 router.put('/:productId', upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'images', maxCount: 5 }
+    { name: 'images', maxCount: 5 }, { name: 'video', maxCount: 3 }
 ]), async (req, res) => {
     try {
         const productId = req.params.productId;
@@ -88,6 +90,9 @@ router.put('/:productId', upload.fields([
             }
             if (req.files.images && req.files.images.length > 0) {
                 product.images = await Promise.all(req.files.images.map(file => uploadToCloudinary(file.path)));
+            }
+            if (req.files.video && req.files.video.length > 0) {
+                product.video = await uploadToCloudinary(req.files.video[0].path, 'video');
             }
         }
 
