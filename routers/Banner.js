@@ -13,7 +13,24 @@ const deleteImagesFromCloudinary = async (images) => {
   await Promise.all(deletions);
 };
 
-// ✅ new 
+// ✅ Helper: Upload file manually to Cloudinary with dynamic resource type
+const uploadToCloudinary = async (filePath) => {
+  const fileExtension = filePath.split('.').pop().toLowerCase();
+  const isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(fileExtension);
+
+  const result = await cloudinary.uploader.upload(filePath, {
+    folder: 'banners',
+    resource_type: isVideo ? 'video' : 'image',
+  });
+
+  return {
+    url: result.secure_url,
+    public_id: result.public_id,
+    resource_type: result.resource_type,
+  };
+};
+
+
 // Create a new banner (supports images/videos)
 router.post('/', (req, res, next) => {
   upload.array('images', 6)(req, res, function (err) {
@@ -78,7 +95,7 @@ router.get('/:id', async (req, res) => {
 
 // ✅ updated banner
 
-// 📌 Update an existing banner
+
 // Update an existing banner (supports images/videos)
 router.put('/update/:id', upload.array('images', 10), async (req, res) => {
   try {

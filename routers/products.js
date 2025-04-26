@@ -8,16 +8,26 @@ const { storage } = require('../cloudinary'); // ensure path is correct for your
 const upload = multer({ storage });
 const cloudinary = require('cloudinary').v2;
 
-// Upload image to Cloudinary (helper function)
+
+// Upload image or video to Cloudinary (helper function)
 const uploadToCloudinary = async (filePath) => {
     try {
-        const result = await cloudinary.uploader.upload(filePath, { folder: 'products' });
+        const fileExtension = filePath.split('.').pop().toLowerCase();
+        const isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(fileExtension);
+
+        const result = await cloudinary.uploader.upload(filePath, {
+            folder: 'products',
+            resource_type: isVideo ? 'video' : 'image', // Dynamically set resource type
+        });
+
         return result.secure_url;
     } catch (error) {
         console.error("Error uploading to Cloudinary", error);
         throw new Error('Image upload failed');
     }
 };
+
+
 
 // Route to add a new product with both single and multiple images
 router.post('/', upload.fields([
@@ -29,7 +39,7 @@ router.post('/', upload.fields([
         const category = await Category.findById(req.body.category);
         if (!category) return res.status(400).send('Invalid Category');
 
-        const singleImageURL = req.files.image ? await uploadToCloudinary(req.files.image[0].path) : null;
+        const singleImageURL = req.files.image ? await uploadToCloudinary(req.files.image[0].path, 'image') : null;
         const imagesPaths = req.files.images ? await Promise.all(req.files.images.map(file => uploadToCloudinary(file.path))) : [];
         const videoURL = req.files.video ? await uploadToCloudinary(req.files.video[0].path, 'video') : null;
         let product = new Product({
