@@ -4,8 +4,8 @@ const express = require("express");
 const { OrderItem } = require("../models/order-item");
 const { Ordercharge } = require("../models/ordercharg");
 const router = express.Router();
-const stripe = require('stripe')('sk_test_51NnpplEwFCK78Ja1SyTU7nkTxHzhrnXgE2efVb5U2aEHkQL9kGB7LTQ4PMh6PutfUdrM3KZwCxV6P8yxrGu8gwXZ00KF1OnMZ0');
 
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 router.get(`/`, async (req, res) => {
   const orderList = await Order.find()
     .populate("user", "name")
