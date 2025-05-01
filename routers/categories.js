@@ -1,7 +1,7 @@
 const {Category} = require('../models/category');
 const express = require('express');
 const router = express.Router();
-
+const { cloudinary, storage } = require('../cloudinary'); //
 router.get(`/`, async (req, res) =>{
     const categoryList = await Category.find();
 
@@ -22,50 +22,69 @@ router.get('/:id', async(req,res)=>{
 
 
 
-router.post('/', async (req,res)=>{
-    let category = new Category({
-        name: req.body.name,
-        icon: req.body.icon,
-        color: req.body.color,
-      
-    })
-    category = await category.save();
+router.post('/', upload.single('image'), async (req, res) => {
+    if (!req.file) return res.status(400).send('No image uploaded.');
+  
+    const category = new Category({
+      name: req.body.name,
+      image: {
+        url: req.file.path,
+        public_id: req.file.filename,
+      },
+    });
+  
+    try {
+      const savedCategory = await category.save();
+      res.status(201).send(savedCategory);
+    } catch (error) {
+      res.status(500).send('Category creation failed');
+    }
+  });
+  
 
-    if(!category)
-    return res.status(400).send('the category cannot be created!')
 
-    res.send(category);
-})
-
-
-router.put('/:id',async (req, res)=> {
-    const category = await Category.findByIdAndUpdate(
-        req.params.id,
-        {
-            name: req.body.name,
-            icon: req.body.icon || category.icon,
-            color: req.body.color,
-        },
-        { new: true}
-    )
-
-    if(!category)
-    return res.status(400).send('the category cannot be created!')
-
-    res.send(category);
-})
+  router.put('/:id', upload.single('image'), async (req, res) => {
+    const category = await Category.findById(req.params.id);
+    if (!category) return res.status(404).send('Category not found');
+  
+    // Delete old image if new one is uploaded
+    if (req.file && category.image?.public_id) {
+      await cloudinary.uploader.destroy(category.image.public_id);
+    }
+  
+    category.name = req.body.name || category.name;
+    if (req.file) {
+      category.image = {
+        url: req.file.path,
+        public_id: req.file.filename,
+      };
+    }
+  
+    try {
+      const updatedCategory = await category.save();
+      res.send(updatedCategory);
+    } catch (error) {
+      res.status(500).send('Category update failed');
+    }
+  });
+  
 
 // DELETE category route
-router.delete('/:id', (req, res)=>{
-  Category.findByIdAndRemove(req.params.id).then(category =>{
-      if(category) {
-          return res.status(200).json({success: true, message: 'the category is deleted!'})
-      } else {
-          return res.status(404).json({success: false , message: "category not found!"})
+router.delete('/:id', async (req, res) => {
+    try {
+      const category = await Category.findById(req.params.id);
+      if (!category) return res.status(404).send('Category not found');
+  
+      if (category.image?.public_id) {
+        await cloudinary.uploader.destroy(category.image.public_id);
       }
-  }).catch(err=>{
-     return res.status(500).json({success: false, error: err}) 
-  })
-})
+  
+      await Category.findByIdAndRemove(req.params.id);
+      res.status(200).send({ success: true, message: 'Category deleted' });
+    } catch (error) {
+      res.status(500).send('Failed to delete category');
+    }
+  });
+  
 
 module.exports =router;
